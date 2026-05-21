@@ -1,9 +1,9 @@
 {
-  "name": "數獨練習",
-  "short_name": "數獨",
-  "start_url": "sudoku.html",
+  "name": "單機小遊戲",
+  "short_name": "小遊戲",
+  "start_url": "index.html",
   "display": "standalone",
-  "background_color": "#f4f2ed",
-  "theme_color": "#f4f2ed",
+  "background_color": "#f6f6f4",
+  "theme_color": "#f6f6f4",
   "icons": []
 }
