@@ -1,0 +1,9 @@
+{
+  "name": "數獨練習",
+  "short_name": "數獨",
+  "start_url": "sudoku.html",
+  "display": "standalone",
+  "background_color": "#f4f2ed",
+  "theme_color": "#f4f2ed",
+  "icons": []
+}

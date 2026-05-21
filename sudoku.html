@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f2ed">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="數獨練習">
+  <link rel="manifest" href="manifest.json">
+  <title>數獨練習</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f2ed;
+      --panel: #fffdf8;
+      --panel-2: #eee9df;
+      --line: #b8b1a5;
+      --line-strong: #36322c;
+      --text: #24211d;
+      --muted: #756d62;
+      --accent: #2d8f78;
+      --accent-2: #d99b26;
+      --bad: #ff776f;
+      --given: #171512;
+      --cell: #fffdf8;
+      --cell-alt: #f6f1e8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", "Noto Sans TC", system-ui, sans-serif;
+      display: grid;
+      place-items: center;
+      padding: 22px;
+    }
+
+    .app {
+      width: min(1040px, 100%);
+      display: grid;
+      grid-template-columns: minmax(320px, 590px) 210px;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .board-panel,
+    .side {
+      background: var(--panel);
+      border: 1px solid rgba(54, 50, 44, 0.14);
+      border-radius: 8px;
+      box-shadow: 0 12px 34px rgba(54, 50, 44, 0.12);
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 16px;
+      border-bottom: 1px solid rgba(54, 50, 44, 0.1);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.55rem;
+      letter-spacing: 0;
+      line-height: 1.05;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(72px, 1fr));
+      gap: 8px;
+      min-width: 166px;
+    }
+
+    .stat {
+      padding: 8px 10px;
+      background: var(--panel-2);
+      border: 1px solid rgba(54, 50, 44, 0.1);
+      border-radius: 6px;
+      text-align: center;
+    }
+
+    .stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.76rem;
+    }
+
+    .stat strong {
+      display: block;
+      margin-top: 2px;
+      font-size: 1.08rem;
+    }
+
+    .board-wrap {
+      padding: 14px;
+    }
+
+    .sudoku {
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      width: min(100%, 560px);
+      aspect-ratio: 1;
+      margin: 0 auto;
+      border: 3px solid var(--line-strong);
+      background: var(--line-strong);
+      gap: 1px;
+      user-select: none;
+    }
+
+    .cell {
+      position: relative;
+      display: grid;
+      place-items: center;
+      border: 0;
+      background: var(--cell);
+      color: #2b6f61;
+      font: 700 clamp(1.1rem, 5vw, 2rem) / 1 "Segoe UI", system-ui, sans-serif;
+      cursor: pointer;
+      padding: 0;
+      outline: 0;
+    }
+
+    .cell.box-alt {
+      background: var(--cell-alt);
+    }
+
+    .cell:nth-child(3n) {
+      border-right: 2px solid var(--line-strong);
+    }
+
+    .cell:nth-child(9n) {
+      border-right: 0;
+    }
+
+    .cell:nth-child(n + 19):nth-child(-n + 27),
+    .cell:nth-child(n + 46):nth-child(-n + 54) {
+      border-bottom: 2px solid var(--line-strong);
+    }
+
+    .cell.given {
+      color: var(--given);
+      background: #e9e2d7;
+      cursor: default;
+    }
+
+    .cell.selected {
+      box-shadow: inset 0 0 0 4px var(--accent);
+      z-index: 2;
+    }
+
+    .cell.peer {
+      background: #e9f3ef;
+    }
+
+    .cell.same {
+      background: #cfece4;
+    }
+
+    .cell.bad {
+      color: #9f221c;
+      background: #ffe2df;
+    }
+
+    .cell.locked-bad {
+      box-shadow: inset 0 0 0 3px rgba(255, 119, 111, 0.8);
+    }
+
+    .notes {
+      position: absolute;
+      inset: 7%;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      color: var(--muted);
+      font-size: clamp(0.48rem, 1.8vw, 0.82rem);
+      font-weight: 600;
+      line-height: 1;
+      align-items: center;
+      justify-items: center;
+    }
+
+    .message {
+      min-height: 50px;
+      margin: 0 16px 14px;
+      padding: 10px 12px;
+      border: 1px solid rgba(45, 143, 120, 0.16);
+      border-radius: 6px;
+      background: #f3faf7;
+      color: #276e60;
+      line-height: 1.45;
+    }
+
+    .message.warn {
+      border-color: rgba(242, 201, 76, 0.32);
+      background: rgba(242, 201, 76, 0.08);
+      color: #6f5516;
+    }
+
+    .message.bad {
+      border-color: rgba(255, 119, 111, 0.32);
+      background: rgba(255, 119, 111, 0.08);
+      color: #8c251f;
+    }
+
+    .side {
+      display: grid;
+      gap: 14px;
+      padding: 14px;
+    }
+
+    .number-pad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    button {
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      min-height: 40px;
+      border: 1px solid rgba(54, 50, 44, 0.12);
+      border-radius: 6px;
+      background: #f7f3ec;
+      color: var(--text);
+      font: inherit;
+      cursor: pointer;
+      transition: background 130ms ease, border-color 130ms ease, transform 130ms ease;
+    }
+
+    button:hover {
+      background: #ebe4d8;
+      border-color: rgba(54, 50, 44, 0.24);
+      transform: translateY(-1px);
+    }
+
+    button.primary {
+      background: #2d8f78;
+      border-color: rgba(45, 143, 120, 0.45);
+      color: #fffdf8;
+    }
+
+    button.active {
+      color: #171512;
+      background: var(--accent-2);
+      border-color: rgba(242, 201, 76, 0.65);
+    }
+
+    .num {
+      min-height: 48px;
+      font-size: 1.24rem;
+      font-weight: 800;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .difficulty {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    @media (max-width: 850px) {
+      body {
+        padding: 12px;
+      }
+
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .header {
+        align-items: center;
+      }
+
+      .stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .board-wrap {
+        padding: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="board-panel" aria-label="數獨遊戲">
+      <div class="header">
+        <div>
+          <h1>數獨練習</h1>
+        </div>
+        <div class="stats">
+          <div class="stat"><span>錯誤</span><strong id="mistakes">0</strong></div>
+          <div class="stat"><span>空格</span><strong id="emptyCount">0</strong></div>
+        </div>
+      </div>
+
+      <div class="board-wrap">
+        <div class="sudoku" id="board" aria-label="9x9 數獨盤面"></div>
+      </div>
+
+      <p class="message" id="message">先從只剩一種可能的格子開始。</p>
+    </section>
+
+    <aside class="side">
+      <div class="number-pad" id="numberPad" aria-label="數字鍵盤"></div>
+
+      <div class="actions">
+        <button id="noteBtn" type="button">筆記模式</button>
+        <button id="eraseBtn" type="button">清除</button>
+        <button id="checkBtn" type="button">檢查</button>
+        <button id="hintBtn" type="button">提示</button>
+      </div>
+
+      <div class="difficulty" aria-label="難度">
+        <button class="difficulty-btn active" data-level="easy" type="button">簡單</button>
+        <button class="difficulty-btn" data-level="medium" type="button">中等</button>
+        <button class="difficulty-btn" data-level="hard" type="button">困難</button>
+      </div>
+
+      <button class="primary" id="newBtn" type="button">新題目</button>
+    </aside>
+  </main>
+
+  <script>
+    const PUZZLES = {
+      easy: [
+        {
+          puzzle: "530070000600195000098000060800060003400803001700020006060000280000419005000080079",
+          solution: "534678912672195348198342567859761423426853791713924856961537284287419635345286179"
+        },
+        {
+          puzzle: "200080300060070084030500209000105408000000000402706000301007040720040060004010003",
+          solution: "245986371169273584837541269976125438513498627482736915391657842728349156654812793"
+        }
+      ],
+      medium: [
+        {
+          puzzle: "000260701680070090190004500820100040004602900050003028009300074040050036703018000",
+          solution: "435269781682571493197834562826195347374682915951743628519326874248957136763418259"
+        },
+        {
+          puzzle: "300000000005009000200504000020000700160000058704310600000890100000067080000005437",
+          solution: "379681524485239716216574893523948761161726358794315682647893145952467183838152437"
+        }
+      ],
+      hard: [
+        {
+          puzzle: "000000907000420180000705026100904000050000040000507009920108000034059000507000000",
+          solution: "462831957795426183381795426173984265659312748248567319926178534834259671517643892"
+        },
+        {
+          puzzle: "005300000800000020070010500400005300010070006003200080060500009004000030000009700",
+          solution: "145327698839654127276918543427865391918473256653291784362547819794186235581239764"
+        }
+      ]
+    };
+
+    const boardEl = document.querySelector("#board");
+    const padEl = document.querySelector("#numberPad");
+    const noteBtn = document.querySelector("#noteBtn");
+    const eraseBtn = document.querySelector("#eraseBtn");
+    const checkBtn = document.querySelector("#checkBtn");
+    const hintBtn = document.querySelector("#hintBtn");
+    const newBtn = document.querySelector("#newBtn");
+    const messageEl = document.querySelector("#message");
+    const mistakesEl = document.querySelector("#mistakes");
+    const emptyCountEl = document.querySelector("#emptyCount");
+
+    let difficulty = "easy";
+    let puzzleIndex = 0;
+    let puzzle = "";
+    let solution = "";
+    let values = [];
+    let givens = [];
+    let notes = [];
+    let selected = 0;
+    let noteMode = false;
+    let mistakes = 0;
+
+    function startGame(level = difficulty) {
+      difficulty = level;
+      const pool = PUZZLES[difficulty];
+      puzzleIndex = (puzzleIndex + 1) % pool.length;
+      puzzle = pool[puzzleIndex].puzzle;
+      solution = pool[puzzleIndex].solution;
+      values = puzzle.split("").map((char) => char === "0" ? "" : char);
+      givens = puzzle.split("").map((char) => char !== "0");
+      notes = Array.from({ length: 81 }, () => new Set());
+      selected = values.findIndex((value) => !value);
+      if (selected < 0) selected = 0;
+      mistakes = 0;
+      noteMode = false;
+      noteBtn.classList.remove("active");
+      setMessage("先從只剩一種可能的格子開始。", "");
+      updateDifficultyButtons();
+      render();
+    }
+
+    function render() {
+      boardEl.innerHTML = "";
+      const selectedValue = values[selected];
+      const selectedRow = rowOf(selected);
+      const selectedCol = colOf(selected);
+      const selectedBox = boxOf(selected);
+
+      values.forEach((value, index) => {
+        const cell = document.createElement("button");
+        cell.type = "button";
+        cell.className = "cell";
+        cell.setAttribute("aria-label", `第 ${rowOf(index) + 1} 列第 ${colOf(index) + 1} 欄`);
+
+        if ((boxOf(index) + rowOf(index)) % 2 === 0) cell.classList.add("box-alt");
+        if (givens[index]) cell.classList.add("given");
+        if (index === selected) cell.classList.add("selected");
+        if (rowOf(index) === selectedRow || colOf(index) === selectedCol || boxOf(index) === selectedBox) cell.classList.add("peer");
+        if (selectedValue && value === selectedValue) cell.classList.add("same");
+        if (value && hasConflict(index, value)) cell.classList.add("bad");
+        if (value && value !== solution[index]) cell.classList.add("locked-bad");
+
+        if (value) {
+          cell.textContent = value;
+        } else if (notes[index].size) {
+          const noteGrid = document.createElement("span");
+          noteGrid.className = "notes";
+          for (let number = 1; number <= 9; number += 1) {
+            const item = document.createElement("span");
+            item.textContent = notes[index].has(String(number)) ? number : "";
+            noteGrid.appendChild(item);
+          }
+          cell.appendChild(noteGrid);
+        }
+
+        cell.addEventListener("click", () => {
+          selected = index;
+          render();
+        });
+
+        boardEl.appendChild(cell);
+      });
+
+      mistakesEl.textContent = mistakes;
+      emptyCountEl.textContent = values.filter((value) => !value).length;
+    }
+
+    function inputNumber(number) {
+      if (selected < 0 || givens[selected]) return;
+      const digit = String(number);
+
+      if (noteMode) {
+        if (values[selected]) return;
+        if (notes[selected].has(digit)) notes[selected].delete(digit);
+        else notes[selected].add(digit);
+        setMessage("候選數已更新。", "");
+        render();
+        return;
+      }
+
+      values[selected] = digit;
+      notes[selected].clear();
+      removePeerNotes(selected, digit);
+
+      if (digit !== solution[selected]) {
+        mistakes += 1;
+        setMessage("這格不太對。紅色會標出衝突或錯填的位置。", "bad");
+      } else if (isComplete()) {
+        setMessage("完成，這盤解開了。", "");
+      } else {
+        setMessage("填得不錯，繼續推下一格。", "");
+      }
+
+      render();
+    }
+
+    function eraseSelected() {
+      if (selected < 0 || givens[selected]) return;
+      values[selected] = "";
+      notes[selected].clear();
+      setMessage("已清除選取格。", "warn");
+      render();
+    }
+
+    function checkBoard() {
+      const wrong = values.reduce((count, value, index) => count + (value && value !== solution[index] ? 1 : 0), 0);
+      if (wrong) {
+        setMessage(`目前有 ${wrong} 格填錯。`, "bad");
+      } else if (isComplete()) {
+        setMessage("全部正確，漂亮收工。", "");
+      } else {
+        setMessage("目前填入的數字都正確。", "");
+      }
+      render();
+    }
+
+    function giveHint() {
+      const index = values.findIndex((value, cellIndex) => !value && candidatesFor(cellIndex).length === 1);
+      const target = index >= 0 ? index : values.findIndex((value) => !value);
+      if (target < 0) {
+        checkBoard();
+        return;
+      }
+      selected = target;
+      const candidates = candidatesFor(target);
+      if (candidates.length === 1) {
+        notes[target].add(candidates[0]);
+        setMessage(`這格只能是 ${candidates[0]}。`, "warn");
+      } else {
+        candidates.slice(0, 4).forEach((candidate) => notes[target].add(candidate));
+        setMessage(`這格可以先考慮 ${candidates.slice(0, 4).join("、")}。`, "warn");
+      }
+      render();
+    }
+
+    function candidatesFor(index) {
+      if (values[index]) return [];
+      const used = new Set();
+      for (const peer of peersOf(index)) {
+        if (values[peer]) used.add(values[peer]);
+      }
+      return ["1", "2", "3", "4", "5", "6", "7", "8", "9"].filter((digit) => !used.has(digit));
+    }
+
+    function removePeerNotes(index, digit) {
+      peersOf(index).forEach((peer) => notes[peer].delete(digit));
+    }
+
+    function peersOf(index) {
+      const peers = new Set();
+      const row = rowOf(index);
+      const col = colOf(index);
+      const boxRow = Math.floor(row / 3) * 3;
+      const boxCol = Math.floor(col / 3) * 3;
+      for (let i = 0; i < 9; i += 1) {
+        peers.add(row * 9 + i);
+        peers.add(i * 9 + col);
+      }
+      for (let r = boxRow; r < boxRow + 3; r += 1) {
+        for (let c = boxCol; c < boxCol + 3; c += 1) {
+          peers.add(r * 9 + c);
+        }
+      }
+      peers.delete(index);
+      return [...peers];
+    }
+
+    function hasConflict(index, value) {
+      return peersOf(index).some((peer) => values[peer] === value);
+    }
+
+    function isComplete() {
+      return values.every((value, index) => value === solution[index]);
+    }
+
+    function rowOf(index) {
+      return Math.floor(index / 9);
+    }
+
+    function colOf(index) {
+      return index % 9;
+    }
+
+    function boxOf(index) {
+      return Math.floor(rowOf(index) / 3) * 3 + Math.floor(colOf(index) / 3);
+    }
+
+    function setMessage(text, tone) {
+      messageEl.textContent = text;
+      messageEl.className = `message${tone ? ` ${tone}` : ""}`;
+    }
+
+    function updateDifficultyButtons() {
+      document.querySelectorAll(".difficulty-btn").forEach((button) => {
+        button.classList.toggle("active", button.dataset.level === difficulty);
+      });
+    }
+
+    for (let number = 1; number <= 9; number += 1) {
+      const button = document.createElement("button");
+      button.className = "num";
+      button.type = "button";
+      button.textContent = number;
+      button.addEventListener("click", () => inputNumber(number));
+      padEl.appendChild(button);
+    }
+
+    noteBtn.addEventListener("click", () => {
+      noteMode = !noteMode;
+      noteBtn.classList.toggle("active", noteMode);
+      setMessage(noteMode ? "筆記模式開啟。" : "填數字模式開啟。", "");
+      render();
+    });
+
+    eraseBtn.addEventListener("click", eraseSelected);
+    checkBtn.addEventListener("click", checkBoard);
+    hintBtn.addEventListener("click", giveHint);
+    newBtn.addEventListener("click", () => startGame(difficulty));
+
+    document.querySelectorAll(".difficulty-btn").forEach((button) => {
+      button.addEventListener("click", () => startGame(button.dataset.level));
+    });
+
+    window.addEventListener("keydown", (event) => {
+      if (event.key >= "1" && event.key <= "9") inputNumber(event.key);
+      if (event.key === "Backspace" || event.key === "Delete" || event.key === "0") eraseSelected();
+      if (event.key === "n" || event.key === "N") {
+        noteMode = !noteMode;
+        noteBtn.classList.toggle("active", noteMode);
+        render();
+      }
+      const row = rowOf(selected);
+      const col = colOf(selected);
+      if (event.key === "ArrowUp") selected = Math.max(0, row - 1) * 9 + col;
+      if (event.key === "ArrowDown") selected = Math.min(8, row + 1) * 9 + col;
+      if (event.key === "ArrowLeft") selected = row * 9 + Math.max(0, col - 1);
+      if (event.key === "ArrowRight") selected = row * 9 + Math.min(8, col + 1);
+      if (event.key.startsWith("Arrow")) {
+        event.preventDefault();
+        render();
+      }
+    });
+
+    startGame("easy");
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("sw.js");
+      });
+    }
+  </script>
+</body>
+</html>
