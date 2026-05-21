@@ -22,5 +22,10 @@
     <a href="sudoku.html"><strong>數獨練習</strong><p>每次新題目都會重新產生，有簡單、中等、困難。</p></a>
     <a href="minesweeper.html"><strong>踩地雷</strong><p>入門、簡單、中等、困難四種盤面，手機也能插旗。</p></a>
   </main>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"));
+    }
+  </script>
 </body>
 </html>
